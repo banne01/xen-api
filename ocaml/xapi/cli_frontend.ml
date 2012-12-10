@@ -998,6 +998,15 @@ let rec cmdtable_data : (string*cmd_spec) list =
       implementation=No_fd Cli_operations.vm_snapshot;
       flags=[Standard; Vm_selectors];
     };
+    
+    "vm-dump-memory",
+    {
+      reqd=["new-name-label"];
+      optn=["new-name-description"];
+      help="Memory Dump an existing VM, using storage-level fast disk snapshot operation where available.";
+      implementation=No_fd Cli_operations.vm_dump_memory;
+      flags=[Standard; Vm_selectors];
+    };
 
     "vm-snapshot-with-quiesce",
     {
