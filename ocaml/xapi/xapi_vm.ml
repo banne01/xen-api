@@ -466,6 +466,10 @@ let snapshot ~__context ~vm ~new_name =
 	TaskHelper.set_cancellable ~__context;
 	Xapi_vm_snapshot.snapshot ~__context ~vm ~new_name
 
+let memdump ~__context ~vm ~new_name =
+	TaskHelper.set_cancellable ~__context;
+	Xapi_vm_snapshot.memdump ~__context ~vm ~new_name
+
 (* Snapshot_with_quiesce triggers the VSS plugin which will then calls the VM.snapshot API call.     *)
 (* Thus, to avoid dead-locks, do not put snapshot and snapshot_with_quiesce on the same waiting line *)
 let snapshot_with_quiesce ~__context ~vm ~new_name =

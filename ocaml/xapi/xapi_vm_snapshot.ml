@@ -205,6 +205,53 @@ let checkpoint ~__context ~vm ~new_name =
 		| None      -> raise (Api_errors.Server_error (Api_errors.task_cancelled,[]))
 		| Some snap -> snap
 
+(*********************************************************************************************)
+(*memory dump --> copy suspended VDI *)
+(*********************************************************************************************)
+let memdump ~__context ~vm ~new_name =
+	debug "memdump: begin";
+	(*TaskHelper.set_cancellable ~__context;
+	Xapi_vmpp.show_task_in_xencenter ~__context ~vm;
+	let res = Xapi_vm_clone.clone Xapi_vm_clone.Disk_op_snapshot ~__context ~vm
+    ~new_name in *)
+
+	let power_state = Db.VM.get_power_state ~__context ~self:vm in
+	let snapshot_info = ref [] in
+		(* live-suspend the VM if the VM is running *)
+		if power_state = `Running
+		then begin
+			try
+				(* Save the state of the vm *)
+				snapshot_info := Xapi_vm_clone.snapshot_info ~power_state ~is_a_snapshot:true;
+				(* suspend the VM *)
+				Xapi_xenops.suspend ~__context ~self:vm;
+			with
+				| Api_errors.Server_error(_, _) as e -> raise e
+				(* | _ -> raise (Api_errors.Server_error (Api_errors.vm_checkpoint_suspend_failed, [Ref.string_of vm])) *)
+		end;
+
+
+		let snap =
+			if not (TaskHelper.is_cancelling ~__context) then begin
+				try Some (Xapi_vm_clone.memdump Xapi_vm_clone.Disk_op_copy ~__context ~vm ~new_name ~snapshot_info_record:!snapshot_info)
+				with Api_errors.Server_error (x, []) when x=Api_errors.task_cancelled -> None
+			end else
+				None in
+
+		(* restore the power state of the VM *)
+		if power_state = `Running
+		then begin
+			let localhost = Helpers.get_localhost ~__context in
+			Db.VM.set_resident_on ~__context ~self:vm ~value:localhost;
+			debug "Performing a slow resume";
+			Xapi_xenops.resume ~__context ~self:vm ~start_paused:false ~force:false;
+		end;
+    debug "memdump end"; 
+		match snap with
+		| None      -> raise (Api_errors.Server_error (Api_errors.task_cancelled,[]))
+		| Some snap -> snap
+
+
 
 (********************************************************************************)
 (*                        Revert                                                *)
