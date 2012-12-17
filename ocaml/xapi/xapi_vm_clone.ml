@@ -346,6 +346,23 @@ let copy_vm_record ?(snapshot_info_record) ~__context ~vm ~disk_op ~new_name ~ne
 let make_driver_params () =
 	[Xapi_globs._sm_epoch_hint, Uuid.to_string (Uuid.make_uuid())]
 
+(*We just need the suspended VDI clonned to another disk*)
+let dumpmem ?(snapshot_info_record) disk_op ~__context ~vm ~new_name =
+	Helpers.call_api_functions ~__context (fun rpc session_id ->
+		let driver_params = make_driver_params () in
+		begin try
+			let suspend_VDI =
+				Helpers.call_api_functions ~__context 
+					(fun rpc session_id ->
+						let original = Db.VM.get_suspend_VDI ~__context ~self:vm in
+						    if original = Ref.null
+							then Ref.null
+							else clone_single_vdi rpc session_id disk_op ~__context original driver_params) in
+				suspend_VDI
+		with e ->
+			raise e
+		end)
+
 (* NB this function may be called when the VM is suspended for copy/clone operations. Snapshot can be done in live.*)
 let clone ?(snapshot_info_record) disk_op ~__context ~vm ~new_name =
 	Helpers.call_api_functions ~__context (fun rpc session_id ->
